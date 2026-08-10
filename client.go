@@ -70,12 +70,15 @@ func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 		return resp.Data, fmt.Errorf("failed to get info: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to decode response from GetInfo: %v", err)
 	}
 	if resp.Code != 0 {
-		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
+		return resp.Data, fmt.Errorf("error getting info: %s", resp.Msg)
 	}
 	return resp.Data, nil
 }
@@ -94,6 +97,9 @@ func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to decode response from getTasks: %v", err)
@@ -123,12 +129,15 @@ func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, 
 		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to decode response from GetTask: %v", err)
 	}
 	if resp.Code != 0 {
-		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
+		return resp.Data, fmt.Errorf("error getting task: %s", resp.Msg)
 	}
 	return resp.Data, nil
 }
@@ -161,12 +170,15 @@ func (c *GopeedClient) CreateTask(
 		return "", fmt.Errorf("failed to create task: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode response from createTask: %v", err)
 	}
 	if resp.Code != 0 {
-		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
+		return resp.Data, fmt.Errorf("error creating task: %s", resp.Msg)
 	}
 	return resp.Data, nil
 
@@ -201,13 +213,16 @@ func (c *GopeedClient) Resolve(
 		return resp.Data, fmt.Errorf("failed to resolve resource: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to decode response from resolve: %v", err)
 	}
 	if resp.Code != 0 {
-		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
+		return resp.Data, fmt.Errorf("error resolving: %s", resp.Msg)
 	}
 	return resp.Data, nil
 }
@@ -233,12 +248,15 @@ func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 		return fmt.Errorf("failed to delete task: %v", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
 	err = json.NewDecoder(res.Body).Decode(&resp)
 	if err != nil {
 		return fmt.Errorf("failed to decode response: %v", err)
 	}
 	if resp.Code != 0 {
-		return fmt.Errorf("error from server: %s", resp.Msg)
+		return fmt.Errorf("error deleting task: %s", resp.Msg)
 	}
 	return nil
 }
