@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const (
@@ -21,19 +22,38 @@ type GopeedClient struct {
 	httpClient *http.Client
 	apiToken   string
 }
+type ClientOption func(*GopeedClient)
 
-func NewClient(baseURL, apiToken string) (*GopeedClient, error) {
+func NewClient(baseURL string, opts ...ClientOption) (*GopeedClient, error) {
 	url, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid base URL: %v", err)
 	}
 	url.Path = "api/" + apiVersion
-	httpClient := &http.Client{}
-	return &GopeedClient{
+	c := &GopeedClient{
 		baseURL:    url.String(),
-		httpClient: httpClient,
-		apiToken:   apiToken,
-	}, nil
+		httpClient: &http.Client{},
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, nil
+}
+
+func WithHTTPClient(client *http.Client) ClientOption {
+	return func(c *GopeedClient) {
+		c.httpClient = client
+	}
+}
+func WithAPIToken(token string) ClientOption {
+	return func(c *GopeedClient) {
+		c.apiToken = token
+	}
+}
+func WithTimeOut(timeout time.Duration) ClientOption {
+	return func(c *GopeedClient) {
+		c.httpClient.Timeout = timeout
+	}
 }
 
 func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
@@ -135,6 +155,7 @@ func (c *GopeedClient) CreateTask(
 	if c.apiToken != "" {
 		req.Header.Add("X-Api-Token", c.apiToken)
 	}
+	req.Header.Add("Content-Type", "application/json")
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create task: %v", err)
@@ -174,6 +195,7 @@ func (c *GopeedClient) Resolve(
 	if c.apiToken != "" {
 		req.Header.Add("X-Api-Token", c.apiToken)
 	}
+	req.Header.Add("Content-Type", "application/json")
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to resolve resource: %v", err)
