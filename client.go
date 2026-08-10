@@ -50,7 +50,7 @@ func WithAPIToken(token string) ClientOption {
 		c.apiToken = token
 	}
 }
-func WithTimeOut(timeout time.Duration) ClientOption {
+func WithTimeout(timeout time.Duration) ClientOption {
 	return func(c *GopeedClient) {
 		c.httpClient.Timeout = timeout
 	}
@@ -58,24 +58,13 @@ func WithTimeOut(timeout time.Duration) ClientOption {
 
 func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 	var resp GopeedResponse[GopeedInfo]
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+infoEndpoint, nil)
+	req, err := newRequest(c, ctx, http.MethodGet, infoEndpoint, nil)
 	if err != nil {
 		return resp.Data, err
 	}
-	if c.apiToken != "" {
-		req.Header.Add("X-Api-Token", c.apiToken)
-	}
-	res, err := c.httpClient.Do(req)
+	err = sendRequest(c, &resp, req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to get info: %v", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		return resp.Data, fmt.Errorf("failed to decode response from GetInfo: %v", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error getting info: %s", resp.Msg)
@@ -85,24 +74,13 @@ func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 
 func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 	var resp GopeedResponse[[]GopeedTask]
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+taskEndpoint, nil)
+	req, err := newRequest(c, ctx, http.MethodGet, taskEndpoint, nil)
 	if err != nil {
 		return resp.Data, err
 	}
-	if c.apiToken != "" {
-		req.Header.Add("X-Api-Token", c.apiToken)
-	}
-	res, err := c.httpClient.Do(req)
+	err = sendRequest(c, &resp, req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		return resp.Data, fmt.Errorf("failed to decode response from getTasks: %v", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
@@ -112,29 +90,16 @@ func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 
 func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, error) {
 	var resp GopeedResponse[GopeedTask]
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		c.baseURL+taskEndpoint+"/"+taskID,
-		nil,
-	)
+	if taskID == "" {
+		return resp.Data, fmt.Errorf("taskID cannot be empty")
+	}
+	req, err := newRequest(c, ctx, http.MethodGet, taskEndpoint+"/"+url.PathEscape(taskID), nil)
 	if err != nil {
 		return resp.Data, err
 	}
-	if c.apiToken != "" {
-		req.Header.Add("X-Api-Token", c.apiToken)
-	}
-	res, err := c.httpClient.Do(req)
+	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		return resp.Data, fmt.Errorf("failed to decode response from GetTask: %v", err)
+		return resp.Data, fmt.Errorf("failed to get task: %v", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error getting task: %s", resp.Msg)
@@ -148,6 +113,9 @@ func (c *GopeedClient) CreateTask(
 	opts GopeedOptions,
 ) (taskid string, err error) {
 	var resp GopeedResponse[string]
+	if resolvedID == "" {
+		return "", fmt.Errorf("resolvedID cannot be empty")
+	}
 	payload := GopeedCreateTask{
 		Rid:  resolvedID,
 		Opts: opts,
@@ -156,29 +124,17 @@ func (c *GopeedClient) CreateTask(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal payload: %v", err)
 	}
-	reader := bytes.NewReader(jsonData)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+taskEndpoint, reader)
+	req, err := newRequest(c, ctx, http.MethodPost, taskEndpoint, jsonData)
 	if err != nil {
-		return resp.Data, err
-	}
-	if c.apiToken != "" {
-		req.Header.Add("X-Api-Token", c.apiToken)
+		return "", err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	res, err := c.httpClient.Do(req)
+	err = sendRequest(c, &resp, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create task: %v", err)
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode response from createTask: %v", err)
-	}
 	if resp.Code != 0 {
-		return resp.Data, fmt.Errorf("error creating task: %s", resp.Msg)
+		return "", fmt.Errorf("error creating task: %s", resp.Msg)
 	}
 	return resp.Data, nil
 
@@ -190,6 +146,9 @@ func (c *GopeedClient) Resolve(
 	opts GopeedOptions,
 ) (resolved GopeedResolved, err error) {
 	var resp GopeedResponse[GopeedResolved]
+	if url == "" {
+		return resp.Data, fmt.Errorf("url cannot be empty")
+	}
 	payload := GopeedResolve{
 		Req:  GopeedRequest{URL: url},
 		Opts: opts,
@@ -198,28 +157,15 @@ func (c *GopeedClient) Resolve(
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to marshal payload: %v", err)
 	}
-	reader := bytes.NewReader(jsonData)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+resolveEndpoint, reader)
+	req, err := newRequest(c, ctx, http.MethodPost, resolveEndpoint, jsonData)
 	if err != nil {
 		return resp.Data, err
 	}
-	if c.apiToken != "" {
-		req.Header.Add("X-Api-Token", c.apiToken)
-	}
 	req.Header.Add("Content-Type", "application/json")
-	res, err := c.httpClient.Do(req)
+	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to resolve resource: %v", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return resp.Data, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		return resp.Data, fmt.Errorf("failed to decode response from resolve: %v", err)
+		return resp.Data, fmt.Errorf("failed to resolve: %v", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error resolving: %s", resp.Msg)
@@ -227,36 +173,79 @@ func (c *GopeedClient) Resolve(
 	return resp.Data, nil
 }
 
+func (c *GopeedClient) CreateTaskFromURL(
+	ctx context.Context,
+	url string,
+	opts GopeedOptions,
+) (taskid string, err error) {
+	resolved, err := c.Resolve(ctx, url, opts)
+	if err != nil {
+		return "", err
+	}
+	taskid, err = c.CreateTask(ctx, resolved.ID, opts)
+	if err != nil {
+		return "", err
+	}
+	return taskid, nil
+}
+
 func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	var resp GopeedResponse[struct{}]
+	if taskID == "" {
+		return fmt.Errorf("taskID cannot be empty")
+	}
 	params := url.Values{}
 	params.Add("force", "true")
-	req, err := http.NewRequestWithContext(
+	req, err := newRequest(
+		c,
 		ctx,
-		"DELETE",
-		c.baseURL+taskEndpoint+"/"+taskID+"?"+params.Encode(),
+		http.MethodDelete,
+		taskEndpoint+"/"+url.PathEscape(taskID)+"?"+params.Encode(),
 		nil,
 	)
 	if err != nil {
 		return err
 	}
+	err = sendRequest(c, &resp, req)
+	if err != nil {
+		return fmt.Errorf("failed to delete task: %v", err)
+	}
+
+	if resp.Code != 0 {
+		return fmt.Errorf("error deleting task: %s", resp.Msg)
+	}
+	return nil
+}
+
+func newRequest(
+	c *GopeedClient,
+	ctx context.Context,
+	method, endpoint string,
+	body []byte,
+) (*http.Request, error) {
+	reader := bytes.NewReader(body)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, reader)
+	if err != nil {
+		return nil, err
+	}
 	if c.apiToken != "" {
 		req.Header.Add("X-Api-Token", c.apiToken)
 	}
+
+	return req, nil
+}
+func sendRequest[T any](c *GopeedClient, resp *GopeedResponse[T], req *http.Request) error {
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to delete task: %v", err)
+		return err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
-	err = json.NewDecoder(res.Body).Decode(&resp)
+	err = json.NewDecoder(res.Body).Decode(resp)
 	if err != nil {
 		return fmt.Errorf("failed to decode response: %v", err)
-	}
-	if resp.Code != 0 {
-		return fmt.Errorf("error deleting task: %s", resp.Msg)
 	}
 	return nil
 }
