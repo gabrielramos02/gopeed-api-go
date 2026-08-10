@@ -236,6 +236,58 @@ func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	return nil
 }
 
+// PauseTask pauses a task from the Gopeed server.
+func (c *GopeedClient) PauseTask(ctx context.Context, taskID string) error {
+	var resp GopeedResponse[struct{}]
+	if taskID == "" {
+		return fmt.Errorf("taskID cannot be empty")
+	}
+	req, err := newRequest(
+		c,
+		ctx,
+		http.MethodPut,
+		taskEndpoint+"/"+url.PathEscape(taskID)+"/pause",
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	err = sendRequest(c, &resp, req)
+	if err != nil {
+		return fmt.Errorf("failed to pause task: %w", err)
+	}
+	if resp.Code != 0 {
+		return fmt.Errorf("error pausing task: %s", resp.Msg)
+	}
+	return nil
+}
+
+// ContinueTask continues a task from the Gopeed server.
+func (c *GopeedClient) ContinueTask(ctx context.Context, taskID string) error {
+	var resp GopeedResponse[struct{}]
+	if taskID == "" {
+		return fmt.Errorf("taskID cannot be empty")
+	}
+	req, err := newRequest(
+		c,
+		ctx,
+		http.MethodPut,
+		taskEndpoint+"/"+url.PathEscape(taskID)+"/continue",
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	err = sendRequest(c, &resp, req)
+	if err != nil {
+		return fmt.Errorf("failed to continue task: %w", err)
+	}
+	if resp.Code != 0 {
+		return fmt.Errorf("error continuing task: %s", resp.Msg)
+	}
+	return nil
+}
+
 // newRequest builds an *http.Request for the configured base URL and endpoint.
 func newRequest(
 	c *GopeedClient,
