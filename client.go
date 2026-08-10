@@ -2,6 +2,7 @@ package gopeed
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,10 +36,15 @@ func NewClient(baseURL, apiToken string) (*GopeedClient, error) {
 	}, nil
 }
 
-func (c *GopeedClient) GetInfo(path string) (GopeedInfo, error) {
+func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 	var resp GopeedResponse[GopeedInfo]
-	req, _ := http.NewRequest("GET", c.baseURL+infoEndpoint, nil)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+infoEndpoint, nil)
+	if err != nil {
+		return resp.Data, err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to get info: %v", err)
@@ -54,13 +60,18 @@ func (c *GopeedClient) GetInfo(path string) (GopeedInfo, error) {
 	return resp.Data, nil
 }
 
-func (c *GopeedClient) GetTasks() ([]GopeedTask, error) {
+func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 	var resp GopeedResponse[[]GopeedTask]
-	req, _ := http.NewRequest("GET", c.baseURL+taskEndpoint, nil)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+taskEndpoint, nil)
+	if err != nil {
+		return resp.Data, err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get taks: %v", err)
+		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
 	}
 	defer res.Body.Close()
 	err = json.NewDecoder(res.Body).Decode(&resp)
@@ -73,13 +84,23 @@ func (c *GopeedClient) GetTasks() ([]GopeedTask, error) {
 	return resp.Data, nil
 }
 
-func (c *GopeedClient) GetTask(taskID string) (GopeedTask, error) {
+func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, error) {
 	var resp GopeedResponse[GopeedTask]
-	req, _ := http.NewRequest("GET", c.baseURL+taskEndpoint+"/"+taskID, nil)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		c.baseURL+taskEndpoint+"/"+taskID,
+		nil,
+	)
+	if err != nil {
+		return resp.Data, err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get taks: %v", err)
+		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
 	}
 	defer res.Body.Close()
 	err = json.NewDecoder(res.Body).Decode(&resp)
@@ -93,6 +114,7 @@ func (c *GopeedClient) GetTask(taskID string) (GopeedTask, error) {
 }
 
 func (c *GopeedClient) CreateTask(
+	ctx context.Context,
 	resolvedID string,
 	opts GopeedOptions,
 ) (taskid string, err error) {
@@ -106,8 +128,13 @@ func (c *GopeedClient) CreateTask(
 		return "", fmt.Errorf("failed to marshal payload: %v", err)
 	}
 	reader := bytes.NewReader(jsonData)
-	req, _ := http.NewRequest("POST", c.baseURL+taskEndpoint, reader)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+taskEndpoint, reader)
+	if err != nil {
+		return resp.Data, err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create task: %v", err)
@@ -125,6 +152,7 @@ func (c *GopeedClient) CreateTask(
 }
 
 func (c *GopeedClient) Resolve(
+	ctx context.Context,
 	url string,
 	opts GopeedOptions,
 ) (resolved GopeedResolved, err error) {
@@ -139,8 +167,13 @@ func (c *GopeedClient) Resolve(
 	}
 	reader := bytes.NewReader(jsonData)
 
-	req, _ := http.NewRequest("POST", c.baseURL+resolveEndpoint, reader)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+resolveEndpoint, reader)
+	if err != nil {
+		return resp.Data, err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to resolve resource: %v", err)
@@ -157,12 +190,22 @@ func (c *GopeedClient) Resolve(
 	return resp.Data, nil
 }
 
-func (c *GopeedClient) DeleteTask(taskID string) error {
+func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	var resp GopeedResponse[struct{}]
 	params := url.Values{}
 	params.Add("force", "true")
-	req, _ := http.NewRequest("DELETE", c.baseURL+taskEndpoint+"/"+taskID+"?"+params.Encode(), nil)
-	req.Header.Add("X-Api-Token", c.apiToken)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"DELETE",
+		c.baseURL+taskEndpoint+"/"+taskID+"?"+params.Encode(),
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	if c.apiToken != "" {
+		req.Header.Add("X-Api-Token", c.apiToken)
+	}
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %v", err)
