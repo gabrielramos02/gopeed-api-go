@@ -34,7 +34,7 @@ type ClientOption func(*GopeedClient)
 func NewClient(baseURL string, opts ...ClientOption) (*GopeedClient, error) {
 	url, err := url.Parse(baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid base URL: %v", err)
+		return nil, fmt.Errorf("invalid base URL: %w", err)
 	}
 	url.Path = "api/" + apiVersion
 	c := &GopeedClient{
@@ -77,7 +77,7 @@ func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get info: %v", err)
+		return resp.Data, fmt.Errorf("failed to get info: %w", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error getting info: %s", resp.Msg)
@@ -94,7 +94,7 @@ func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get tasks: %v", err)
+		return resp.Data, fmt.Errorf("failed to get tasks: %w", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error from server: %s", resp.Msg)
@@ -114,7 +114,7 @@ func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, 
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to get task: %v", err)
+		return resp.Data, fmt.Errorf("failed to get task: %w", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error getting task: %s", resp.Msg)
@@ -139,7 +139,7 @@ func (c *GopeedClient) CreateTask(
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %v", err)
+		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 	reader := bytes.NewReader(jsonData)
 	req, err := newRequest(c, ctx, http.MethodPost, taskEndpoint, reader)
@@ -148,7 +148,7 @@ func (c *GopeedClient) CreateTask(
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return "", fmt.Errorf("failed to create task: %v", err)
+		return "", fmt.Errorf("failed to create task: %w", err)
 	}
 	if resp.Code != 0 {
 		return "", fmt.Errorf("error creating task: %s", resp.Msg)
@@ -173,7 +173,7 @@ func (c *GopeedClient) Resolve(
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to marshal payload: %v", err)
+		return resp.Data, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 	reader := bytes.NewReader(jsonData)
 	req, err := newRequest(c, ctx, http.MethodPost, resolveEndpoint, reader)
@@ -182,7 +182,7 @@ func (c *GopeedClient) Resolve(
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return resp.Data, fmt.Errorf("failed to resolve: %v", err)
+		return resp.Data, fmt.Errorf("failed to resolve: %w", err)
 	}
 	if resp.Code != 0 {
 		return resp.Data, fmt.Errorf("error resolving: %s", resp.Msg)
@@ -227,7 +227,7 @@ func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	}
 	err = sendRequest(c, &resp, req)
 	if err != nil {
-		return fmt.Errorf("failed to delete task: %v", err)
+		return fmt.Errorf("failed to delete task: %w", err)
 	}
 
 	if resp.Code != 0 {
@@ -269,7 +269,7 @@ func sendRequest[T any](c *GopeedClient, resp *GopeedResponse[T], req *http.Requ
 	}
 	err = json.NewDecoder(res.Body).Decode(resp)
 	if err != nil {
-		return fmt.Errorf("failed to decode response: %v", err)
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 	return nil
 }
