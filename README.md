@@ -99,6 +99,14 @@ task, err := client.GetTask(ctx, taskID)
 err = client.DeleteTask(ctx, taskID)
 ```
 
+### Pause and continue tasks
+
+```go
+err := client.PauseTask(ctx, taskID)
+
+err = client.ContinueTask(ctx, taskID)
+```
+
 ## Client options
 
 | Option | Description |
@@ -118,6 +126,8 @@ err = client.DeleteTask(ctx, taskID)
 | `CreateTask` | Create a task from a resolved resource ID |
 | `CreateTaskFromURL` | Resolve + create in one call |
 | `DeleteTask` | Delete a task |
+| `PauseTask` | Pause an active task |
+| `ContinueTask` | Resume a paused task |
 
 ## Options
 
