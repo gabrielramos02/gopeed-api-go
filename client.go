@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -124,7 +125,8 @@ func (c *GopeedClient) CreateTask(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal payload: %v", err)
 	}
-	req, err := newRequest(c, ctx, http.MethodPost, taskEndpoint, jsonData)
+	reader := bytes.NewReader(jsonData)
+	req, err := newRequest(c, ctx, http.MethodPost, taskEndpoint, reader)
 	if err != nil {
 		return "", err
 	}
@@ -157,8 +159,8 @@ func (c *GopeedClient) Resolve(
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to marshal payload: %v", err)
 	}
-
-	req, err := newRequest(c, ctx, http.MethodPost, resolveEndpoint, jsonData)
+	reader := bytes.NewReader(jsonData)
+	req, err := newRequest(c, ctx, http.MethodPost, resolveEndpoint, reader)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -221,10 +223,9 @@ func newRequest(
 	c *GopeedClient,
 	ctx context.Context,
 	method, endpoint string,
-	body []byte,
+	body io.Reader,
 ) (*http.Request, error) {
-	reader := bytes.NewReader(body)
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, reader)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
