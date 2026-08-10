@@ -18,13 +18,19 @@ const (
 	resolveEndpoint = "/resolve"
 )
 
+// GopeedClient communicates with the Gopeed HTTP API.
+// The zero value is not usable; use NewClient to create clients.
 type GopeedClient struct {
 	baseURL    string
 	httpClient *http.Client
 	apiToken   string
 }
+
+// ClientOption configures a GopeedClient.
 type ClientOption func(*GopeedClient)
 
+// NewClient returns a new GopeedClient for the provided base URL.
+// The URL should be the root of the Gopeed server, e.g. http://localhost:9999.
 func NewClient(baseURL string, opts ...ClientOption) (*GopeedClient, error) {
 	url, err := url.Parse(baseURL)
 	if err != nil {
@@ -41,22 +47,28 @@ func NewClient(baseURL string, opts ...ClientOption) (*GopeedClient, error) {
 	return c, nil
 }
 
+// WithHTTPClient sets the HTTP client used to make requests.
 func WithHTTPClient(client *http.Client) ClientOption {
 	return func(c *GopeedClient) {
 		c.httpClient = client
 	}
 }
+
+// WithAPIToken sets the API token sent on every request.
 func WithAPIToken(token string) ClientOption {
 	return func(c *GopeedClient) {
 		c.apiToken = token
 	}
 }
+
+// WithTimeout configures a timeout for all requests made by the client.
 func WithTimeout(timeout time.Duration) ClientOption {
 	return func(c *GopeedClient) {
 		c.httpClient.Timeout = timeout
 	}
 }
 
+// GetInfo returns version and runtime information about the Gopeed server.
 func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 	var resp GopeedResponse[GopeedInfo]
 	req, err := newRequest(c, ctx, http.MethodGet, infoEndpoint, nil)
@@ -73,6 +85,7 @@ func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 	return resp.Data, nil
 }
 
+// GetTasks returns all tasks known by the Gopeed server.
 func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 	var resp GopeedResponse[[]GopeedTask]
 	req, err := newRequest(c, ctx, http.MethodGet, taskEndpoint, nil)
@@ -89,6 +102,7 @@ func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
 	return resp.Data, nil
 }
 
+// GetTask returns a single task by its ID.
 func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, error) {
 	var resp GopeedResponse[GopeedTask]
 	if taskID == "" {
@@ -108,6 +122,8 @@ func (c *GopeedClient) GetTask(ctx context.Context, taskID string) (GopeedTask, 
 	return resp.Data, nil
 }
 
+// CreateTask creates a new download task from an already resolved resource ID.
+// Use Resolve to obtain a resolvedID, or use CreateTaskFromURL for a single-step flow.
 func (c *GopeedClient) CreateTask(
 	ctx context.Context,
 	resolvedID string,
@@ -130,7 +146,6 @@ func (c *GopeedClient) CreateTask(
 	if err != nil {
 		return "", err
 	}
-	req.Header.Add("Content-Type", "application/json")
 	err = sendRequest(c, &resp, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create task: %v", err)
@@ -142,6 +157,7 @@ func (c *GopeedClient) CreateTask(
 
 }
 
+// Resolve analyzes url and returns the resolved resource metadata.
 func (c *GopeedClient) Resolve(
 	ctx context.Context,
 	url string,
@@ -164,7 +180,6 @@ func (c *GopeedClient) Resolve(
 	if err != nil {
 		return resp.Data, err
 	}
-	req.Header.Add("Content-Type", "application/json")
 	err = sendRequest(c, &resp, req)
 	if err != nil {
 		return resp.Data, fmt.Errorf("failed to resolve: %v", err)
@@ -175,6 +190,7 @@ func (c *GopeedClient) Resolve(
 	return resp.Data, nil
 }
 
+// CreateTaskFromURL resolves url and immediately creates a download task.
 func (c *GopeedClient) CreateTaskFromURL(
 	ctx context.Context,
 	url string,
@@ -191,6 +207,7 @@ func (c *GopeedClient) CreateTaskFromURL(
 	return taskid, nil
 }
 
+// DeleteTask removes a task from the Gopeed server.
 func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	var resp GopeedResponse[struct{}]
 	if taskID == "" {
@@ -219,6 +236,7 @@ func (c *GopeedClient) DeleteTask(ctx context.Context, taskID string) error {
 	return nil
 }
 
+// newRequest builds an *http.Request for the configured base URL and endpoint.
 func newRequest(
 	c *GopeedClient,
 	ctx context.Context,
@@ -232,9 +250,14 @@ func newRequest(
 	if c.apiToken != "" {
 		req.Header.Add("X-Api-Token", c.apiToken)
 	}
+	if body != nil {
+		req.Header.Add("Content-Type", "application/json")
+	}
 
 	return req, nil
 }
+
+// sendRequest executes req and decodes the response into resp.
 func sendRequest[T any](c *GopeedClient, resp *GopeedResponse[T], req *http.Request) error {
 	res, err := c.httpClient.Do(req)
 	if err != nil {
