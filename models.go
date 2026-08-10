@@ -80,7 +80,7 @@ type GopeedProgress struct {
 }
 
 type GopeedResolved struct {
-	Id       string         `json:"id"`
+	ID       string         `json:"id"`
 	Resource GopeedResource `json:"res"`
 }
 
