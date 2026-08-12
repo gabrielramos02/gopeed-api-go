@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,8 +34,8 @@ type ClientOption func(*GopeedClient)
 // The URL should be the root of the Gopeed server, e.g. http://localhost:9999.
 func NewClient(baseURL string, opts ...ClientOption) (*GopeedClient, error) {
 	url, err := url.Parse(baseURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base URL: %w", err)
+	if err != nil || url.String() == "" {
+		return nil, errors.New("invalid base URL")
 	}
 	url.Path = "api/" + apiVersion
 	c := &GopeedClient{
