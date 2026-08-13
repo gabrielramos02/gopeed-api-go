@@ -87,9 +87,20 @@ func (c *GopeedClient) GetInfo(ctx context.Context) (GopeedInfo, error) {
 }
 
 // GetTasks returns all tasks known by the Gopeed server.
-func (c *GopeedClient) GetTasks(ctx context.Context) ([]GopeedTask, error) {
+func (c *GopeedClient) GetTasks(
+	ctx context.Context,
+	tasksID []string,
+	status GopeedStatus,
+) ([]GopeedTask, error) {
 	var resp GopeedResponse[[]GopeedTask]
-	req, err := newRequest(c, ctx, http.MethodGet, taskEndpoint, nil)
+	params := url.Values{}
+	for _, id := range tasksID {
+		params.Add("id", id)
+	}
+	if status != "" {
+		params.Add("status", string(status))
+	}
+	req, err := newRequest(c, ctx, http.MethodGet, taskEndpoint+"?"+params.Encode(), nil)
 	if err != nil {
 		return resp.Data, err
 	}
